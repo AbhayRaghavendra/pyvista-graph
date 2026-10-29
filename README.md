@@ -16,13 +16,13 @@ mesh_again = mesh.graph.to_polydata(graph)
 ```
 
 `to_jraph()` produces a `jraph.GraphsTuple` for one line-only `PolyData` mesh.
-Mesh points become nodes and are stored as the `positions` node feature;
+Mesh points become nodes and are stored as the `pos` node feature;
 two-point line cells become directed edges, with point order specifying
 sender-to-receiver direction. PyVista `point_data`, `cell_data`, and
 `field_data` become node, edge, and global feature dictionaries. The
-`positions` key is reserved for mesh coordinates. Polygons,
+`pos` key is reserved for mesh coordinates. Polygons,
 strips, vertices, and batched `GraphsTuple` values are not supported. When
-converting a graph without a `positions` node feature, `to_polydata()` uses
+converting a graph without a `pos` node feature, `to_polydata()` uses
 zero coordinates.
 
 Install with `pip install pyvista-graph`. The accessor is registered by

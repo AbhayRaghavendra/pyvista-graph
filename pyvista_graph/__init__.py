@@ -9,7 +9,7 @@ import jraph
 import numpy as np
 import pyvista as pv
 
-_POSITIONS_KEY = "positions"
+_POSITIONS_KEY = "pos"
 
 
 def _feature_mapping(
@@ -48,7 +48,7 @@ def _feature_mapping(
 class GraphAccessor:
     """Convert between a PyVista mesh and a single-graph jraph ``GraphsTuple``.
 
-    Mesh points are graph nodes and are included in ``nodes["positions"]``.
+    Mesh points are graph nodes and are included in ``nodes["pos"]``.
     Explicit two-point line cells are directed edges, with each line's point
     order defining its sender and receiver. Point, cell, and field data map to
     node, edge, and global features, respectively.
@@ -118,7 +118,7 @@ class GraphAccessor:
     def to_polydata(graph: jraph.GraphsTuple) -> pv.PolyData:
         """Convert a single-graph ``GraphsTuple`` to a new ``PolyData`` mesh.
 
-        Batched tuples are not supported. Graphs without a ``positions`` node
+        Batched tuples are not supported. Graphs without a ``pos`` node
         feature receive zero-valued coordinates.
         """
         if not isinstance(graph, jraph.GraphsTuple):
