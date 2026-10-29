@@ -163,7 +163,8 @@ class GraphAccessor:
         connectivity = np.column_stack(
             (np.full(n_edge, 2, dtype=np.int64), senders, receivers)
         ).ravel()
-        mesh = pv.PolyData(positions, lines=connectivity)
+        new_positions = graph.nodes["pos"]
+        mesh = pv.PolyData(new_positions, lines=connectivity)
         for name, values in node_arrays.items():
             mesh.point_data[name] = values
         for name, values in edge_arrays.items():
