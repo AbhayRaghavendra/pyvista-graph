@@ -114,7 +114,8 @@ class GraphAccessor:
             n_edge=np.asarray([len(senders)], dtype=np.int32),
         )
 
-    def to_polydata(self, graph: jraph.GraphsTuple) -> pv.PolyData:
+    @staticmethod
+    def to_polydata(graph: jraph.GraphsTuple) -> pv.PolyData:
         """Convert a single-graph ``GraphsTuple`` to a new ``PolyData`` mesh.
 
         Batched tuples are not supported. Graphs without a ``positions`` node
@@ -123,13 +124,13 @@ class GraphAccessor:
         if not isinstance(graph, jraph.GraphsTuple):
             raise TypeError("to_polydata() requires a jraph.GraphsTuple.")
 
-        n_node = self._single_count(graph.n_node, "n_node")
-        n_edge = self._single_count(graph.n_edge, "n_edge")
+        n_node = GraphAccessor._single_count(graph.n_node, "n_node")
+        n_edge = GraphAccessor._single_count(graph.n_edge, "n_edge")
         if n_node < 0 or n_edge < 0:
             raise ValueError("n_node and n_edge must be non-negative.")
 
-        senders = self._indices(graph.senders, n_edge, "senders")
-        receivers = self._indices(graph.receivers, n_edge, "receivers")
+        senders = GraphAccessor._indices(graph.senders, n_edge, "senders")
+        receivers = GraphAccessor._indices(graph.receivers, n_edge, "receivers")
         if np.any(senders < 0) or np.any(senders >= n_node):
             raise ValueError("senders contains an index outside the graph's nodes.")
         if np.any(receivers < 0) or np.any(receivers >= n_node):
@@ -158,7 +159,7 @@ class GraphAccessor:
             )
 
         edge_arrays = _feature_mapping(graph.edges, n_edge, "cell")
-        global_arrays = self._global_mapping(graph.globals)
+        global_arrays = GraphAccessor._global_mapping(graph.globals)
 
         connectivity = np.column_stack(
             (np.full(n_edge, 2, dtype=np.int64), senders, receivers)
