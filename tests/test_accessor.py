@@ -61,3 +61,37 @@ def test_to_polydata_rejects_batched_graphs():
 
     with pytest.raises(ValueError, match="one-element"):
         pv.PolyData().graph.to_polydata(graph)
+
+
+def test_to_polydata_accepts_pos_only_graph_tuple():
+    pos = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    graph = jraph.GraphsTuple(
+        nodes={"pos": pos},
+        edges=None,
+        senders=np.array([0], dtype=np.int32),
+        receivers=np.array([1], dtype=np.int32),
+        n_node=np.array([2], dtype=np.int32),
+        n_edge=np.array([1], dtype=np.int32),
+        globals=None,
+    )
+
+    mesh = pyvista_graph.GraphAccessor.to_polydata(graph)
+
+    np.testing.assert_array_equal(mesh.points, pos)
+    np.testing.assert_array_equal(mesh.lines, [2, 0, 1])
+    mesh.plot()
+
+
+def test_to_polydata_rejects_graph_without_pos():
+    graph = jraph.GraphsTuple(
+        nodes={"features": np.ones((2, 3))},
+        edges=None,
+        senders=np.array([0], dtype=np.int32),
+        receivers=np.array([1], dtype=np.int32),
+        n_node=np.array([2], dtype=np.int32),
+        n_edge=np.array([1], dtype=np.int32),
+        globals=None,
+    )
+
+    with pytest.raises(ValueError, match="must include the 'pos'"):
+        pyvista_graph.GraphAccessor.to_polydata(graph)

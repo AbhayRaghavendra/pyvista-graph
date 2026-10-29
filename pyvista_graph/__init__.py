@@ -118,8 +118,8 @@ class GraphAccessor:
     def to_polydata(graph: jraph.GraphsTuple) -> pv.PolyData:
         """Convert a single-graph ``GraphsTuple`` to a new ``PolyData`` mesh.
 
-        Batched tuples are not supported. Graphs without a ``pos`` node
-        feature receive zero-valued coordinates.
+        Batched tuples are not supported. Node coordinates must be provided
+        under ``graph.nodes["pos"]`` with shape ``(n_node, 3)``.
         """
         if not isinstance(graph, jraph.GraphsTuple):
             raise TypeError("to_polydata() requires a jraph.GraphsTuple.")
@@ -138,24 +138,23 @@ class GraphAccessor:
 
         node_features = graph.nodes
         if isinstance(node_features, Mapping):
+            if _POSITIONS_KEY not in node_features:
+                raise ValueError(
+                    f"graph.nodes must include the {_POSITIONS_KEY!r} position feature."
+                )
             node_arrays = _feature_mapping(node_features, n_node, "point")
-            positions = node_arrays.pop(_POSITIONS_KEY, np.zeros((n_node, 3)))
-        elif node_features is None:
-            node_arrays = {}
-            positions = np.zeros((n_node, 3))
+            positions = node_arrays.pop(_POSITIONS_KEY)
         else:
-            raw_nodes = np.asarray(node_features)
-            if raw_nodes.shape == (n_node, 3):
-                positions = raw_nodes
-                node_arrays = {}
-            else:
-                positions = np.zeros((n_node, 3))
-                node_arrays = _feature_mapping(raw_nodes, n_node, "point")
+            raise ValueError(
+                f"graph.nodes must be a mapping containing the "
+                f"{_POSITIONS_KEY!r} position feature."
+            )
 
         positions = np.asarray(positions)
         if positions.shape != (n_node, 3):
             raise ValueError(
-                f"nodes[{_POSITIONS_KEY!r}] must have shape ({n_node}, 3)."
+                f"graph.nodes[{_POSITIONS_KEY!r}] must have shape ({n_node}, 3), "
+                f"got {positions.shape}."
             )
 
         edge_arrays = _feature_mapping(graph.edges, n_edge, "cell")

@@ -21,9 +21,9 @@ two-point line cells become directed edges, with point order specifying
 sender-to-receiver direction. PyVista `point_data`, `cell_data`, and
 `field_data` become node, edge, and global feature dictionaries. The
 `pos` key is reserved for mesh coordinates. Polygons,
-strips, vertices, and batched `GraphsTuple` values are not supported. When
-converting a graph without a `pos` node feature, `to_polydata()` uses
-zero coordinates.
+strips, vertices, and batched `GraphsTuple` values are not supported.
+`to_polydata()` requires `graph.nodes["pos"]` to have shape
+`(num_nodes, 3)`.
 
 Install with `pip install pyvista-graph`. The accessor is registered by
 `import pyvista_graph`, and requires PyVista 0.48 or later.
