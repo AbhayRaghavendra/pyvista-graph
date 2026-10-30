@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
+from typing import Literal
 
+import jax
+import jax.numpy as jnp
 import jraph
 import numpy as np
 import pyvista as pv
@@ -57,8 +60,15 @@ class GraphAccessor:
     def __init__(self, dataset: pv.DataSet) -> None:
         self._dataset = dataset
 
-    def to_jraph(self) -> jraph.GraphsTuple:
-        """Convert this line-only ``PolyData`` mesh to a single ``GraphsTuple``."""
+    def to_jraph(self, *, as_jax: bool = False) -> jraph.GraphsTuple:
+        """Convert this line-only ``PolyData`` mesh to a single ``GraphsTuple``.
+
+        Parameters
+        ----------
+        as_jax : bool, default: False
+            Convert all array leaves in the returned tuple to JAX arrays.
+            When false, the tuple contains NumPy arrays.
+        """
         mesh = self._dataset
         if not isinstance(mesh, pv.PolyData):
             raise TypeError("to_jraph() requires a pyvista.PolyData mesh.")
@@ -104,7 +114,7 @@ class GraphAccessor:
                 )
             globals_[name] = values
 
-        return jraph.GraphsTuple(
+        graph = jraph.GraphsTuple(
             nodes=nodes,
             edges=edges or None,
             receivers=np.asarray(receivers, dtype=np.int64),
@@ -113,6 +123,44 @@ class GraphAccessor:
             n_node=np.asarray([mesh.n_points], dtype=np.int32),
             n_edge=np.asarray([len(senders)], dtype=np.int32),
         )
+        if as_jax:
+            return jax.tree_util.tree_map(jnp.asarray, graph)
+        return graph
+
+    @staticmethod
+    def node_degrees(
+        graph: jraph.GraphsTuple,
+        direction: Literal["incoming", "outgoing", "both"] = "incoming",
+    ) -> jax.Array:
+        """Return each node's incoming, outgoing, or total degree as a JAX array.
+
+        ``both`` sums incoming and outgoing degree, so a self-loop contributes
+        two to that node's total.
+        """
+        if not isinstance(graph, jraph.GraphsTuple):
+            raise TypeError("node_degrees() requires a jraph.GraphsTuple.")
+        if direction not in ("incoming", "outgoing", "both"):
+            raise ValueError(
+                "direction must be 'incoming', 'outgoing', or 'both'."
+            )
+
+        n_node = GraphAccessor._single_count(graph.n_node, "n_node")
+        n_edge = GraphAccessor._single_count(graph.n_edge, "n_edge")
+        if n_node < 0 or n_edge < 0:
+            raise ValueError("n_node and n_edge must be non-negative.")
+        senders = GraphAccessor._indices(graph.senders, n_edge, "senders")
+        receivers = GraphAccessor._indices(graph.receivers, n_edge, "receivers")
+        for name, indices in (("senders", senders), ("receivers", receivers)):
+            if np.any(indices < 0) or np.any(indices >= n_node):
+                raise ValueError(f"{name} contains an index outside the graph's nodes.")
+
+        in_degree = jnp.bincount(jnp.asarray(receivers), length=n_node)
+        if direction == "incoming":
+            return in_degree
+        out_degree = jnp.bincount(jnp.asarray(senders), length=n_node)
+        if direction == "outgoing":
+            return out_degree
+        return in_degree + out_degree
 
     @staticmethod
     def to_polydata(graph: jraph.GraphsTuple) -> pv.PolyData:
@@ -163,8 +211,7 @@ class GraphAccessor:
         connectivity = np.column_stack(
             (np.full(n_edge, 2, dtype=np.int64), senders, receivers)
         ).ravel()
-        new_positions = graph.nodes["pos"]
-        mesh = pv.PolyData(new_positions, lines=connectivity)
+        mesh = pv.PolyData(positions, lines=connectivity)
         for name, values in node_arrays.items():
             mesh.point_data[name] = values
         for name, values in edge_arrays.items():

@@ -1,3 +1,5 @@
+import jax
+import jax.numpy as jnp
 import jraph
 import numpy as np
 import pyvista as pv
@@ -79,7 +81,6 @@ def test_to_polydata_accepts_pos_only_graph_tuple():
 
     np.testing.assert_array_equal(mesh.points, pos)
     np.testing.assert_array_equal(mesh.lines, [2, 0, 1])
-    mesh.plot()
 
 
 def test_to_polydata_rejects_graph_without_pos():
@@ -95,3 +96,49 @@ def test_to_polydata_rejects_graph_without_pos():
 
     with pytest.raises(ValueError, match="must include the 'pos'"):
         pyvista_graph.GraphAccessor.to_polydata(graph)
+
+
+def test_to_jraph_can_return_jax_arrays():
+    mesh = pv.PolyData(
+        [[0.0, 0, 0], [1, 0, 0], [0, 1, 0]],
+        lines=[2, 0, 1, 2, 2, 1],
+    )
+
+    graph = mesh.graph.to_jraph(as_jax=True)
+
+    assert all(
+        isinstance(leaf, jax.Array) for leaf in jax.tree_util.tree_leaves(graph)
+    )
+    np.testing.assert_array_equal(graph.nodes["pos"], mesh.points)
+
+
+@pytest.mark.parametrize(
+    ("direction", "expected"),
+    [
+        ("incoming", [0, 2, 0]),
+        ("outgoing", [1, 0, 1]),
+        ("both", [1, 2, 1]),
+    ],
+)
+def test_node_degrees(direction, expected):
+    mesh = pv.PolyData(
+        [[0.0, 0, 0], [1, 0, 0], [0, 1, 0]],
+        lines=[2, 0, 1, 2, 2, 1],
+    )
+    graph = mesh.graph.to_jraph(as_jax=True)
+
+    degrees = pyvista_graph.GraphAccessor.node_degrees(graph, direction)
+
+    assert isinstance(degrees, jax.Array)
+    np.testing.assert_array_equal(degrees, expected)
+    assert jax.jit(lambda values: jnp.sum(values))(degrees) >= 0
+
+
+def test_node_degrees_rejects_invalid_direction():
+    graph = pv.PolyData(
+        [[0.0, 0, 0], [1, 0, 0]],
+        lines=[2, 0, 1],
+    ).graph.to_jraph()
+
+    with pytest.raises(ValueError, match="direction must be"):
+        pyvista_graph.GraphAccessor.node_degrees(graph, "sideways")

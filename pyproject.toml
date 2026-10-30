@@ -7,8 +7,10 @@ name = "pyvista-graph"
 version = "0.1.0"
 description = "PyVista accessor for converting meshes to and from jraph graphs"
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = [
+    "jax>=0.4.20",
     "jraph",
     "numpy",
     "pyvista>=0.48.0",
@@ -19,3 +21,4 @@ test = ["pytest"]
 
 [tool.setuptools]
 packages = ["pyvista_graph"]
+license-files = ["LICENSE"]
